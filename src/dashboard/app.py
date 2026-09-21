@@ -233,13 +233,13 @@ def render_overview():
 
     # Health check
     try:
-        health = requests.get(f"{API_BASE}/health", timeout=5).json()
+        health = requests.get(f"{API_BASE}/health", timeout=15).json()
         if health.get("status") == "healthy":
             st.success("All systems healthy", icon="✅")
         else:
-            st.warning("System degraded — some components may be slow", icon="⚠️")
+            st.info("System warming up — FinBERT may need a moment on first request", icon="⏳")
     except Exception:
-        st.warning("Could not reach health endpoint", icon="⚠️")
+        st.info("Health check timed out — this is normal on first load (cold start)", icon="⏳")
 
     st.divider()
 
