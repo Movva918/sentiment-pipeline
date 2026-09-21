@@ -1,0 +1,182 @@
+name: Sentiment Pipeline CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  GCP_PROJECT_ID: project-53a12d85-1293-4733-a2b
+  GCP_REGION: us-central1
+
+jobs:
+  # ── Lint and Test ──────────────────────────────────
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3 requests moto pytest flake8
+
+      - name: Lint
+        run: |
+          flake8 src/ --max-line-length 120 --ignore E501,W503,E303
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v --tb=short
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+
+  # ── Deploy Lambdas ────────────────────────────────
+  deploy-lambdas:
+    name: Deploy Lambda Functions
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Lambda dependencies
+        run: |
+          mkdir -p build/layer/python
+          pip install requests -t build/layer/python
+
+      - name: Package ingestion Lambdas
+        run: |
+          cd src/ingestion
+          for handler in finnhub_lambda sec_edgar_lambda rss_lambda alpha_vantage_lambda; do
+            zip -j ../../build/${handler}.zip ${handler}.py utils.py
+          done
+          cd ../..
+
+      - name: Package scoring consumer
+        run: |
+          cd src/ingestion
+          zip -j ../../build/scoring_consumer.zip scoring_consumer_lambda.py utils.py
+          cd ../..
+
+      - name: Package API Lambda
+        run: |
+          cd src/api
+          zip -j ../../build/api_lambda.zip api_lambda.py
+          cd ../..
+
+      - name: Package Lambda layer
+        run: |
+          cd build/layer
+          zip -r ../requests_layer.zip python/
+          cd ../..
+
+      - name: Deploy Lambda layer
+        run: |
+          LAYER_ARN=$(aws lambda publish-layer-version \
+            --layer-name sentiment-pipeline-requests \
+            --zip-file fileb://build/requests_layer.zip \
+            --compatible-runtimes python3.11 \
+            --query 'LayerVersionArn' --output text)
+          echo "LAYER_ARN=$LAYER_ARN" >> $GITHUB_ENV
+
+      - name: Deploy ingestion Lambdas
+        run: |
+          for func in finnhub sec-edgar rss alpha-vantage; do
+            handler_file=$(echo $func | tr '-' '_')
+            aws lambda update-function-code \
+              --function-name sentiment-${func}-ingestion \
+              --zip-file fileb://build/${handler_file}_lambda.zip
+          done
+
+      - name: Deploy scoring consumer
+        run: |
+          aws lambda update-function-code \
+            --function-name sentiment-scoring-consumer \
+            --zip-file fileb://build/scoring_consumer.zip
+
+      - name: Deploy API Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name sentiment-pipeline-api \
+            --zip-file fileb://build/api_lambda.zip
+
+      - name: Verify deployment
+        run: |
+          API_URL=$(aws apigatewayv2 get-apis --query 'Items[?Name==`sentiment-pipeline-api`].ApiEndpoint' --output text)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/health")
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "503" ]; then
+            echo "Health check failed with status $STATUS"
+            exit 1
+          fi
+          echo "Deployment verified: health endpoint returned $STATUS"
+
+  # ── Deploy FinBERT Container ───────────────────────
+  deploy-finbert:
+    name: Deploy FinBERT (if changed)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for scoring changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q 'src/scoring/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Authenticate to GCP
+        if: steps.changes.outputs.changed == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        if: steps.changes.outputs.changed == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push FinBERT container
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
+          docker build -t ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/sentiment-pipeline/finbert-scoring:latest src/scoring/
+          docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/sentiment-pipeline/finbert-scoring:latest
+
+      - name: Deploy to Cloud Run
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          gcloud run deploy finbert-scoring \
+            --image ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/sentiment-pipeline/finbert-scoring:latest \
+            --region ${GCP_REGION} \
+            --project ${GCP_PROJECT_ID}
