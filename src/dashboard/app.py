@@ -345,12 +345,24 @@ def render_detail(ticker: str):
         conf = art.get("confidence", 0) * 100
         time_ago = format_time_ago(art.get("published_at", ""))
 
+        url = art.get("url", "")
+        headline = art.get("headline", "")
+        source = art.get("source", "")
+
+        # Make headline a clickable link if URL exists
+        if url:
+            headline_html = f'<a href="{url}" target="_blank" style="color:inherit; text-decoration:none; border-bottom:1px dotted #4a5568;">{headline}</a>'
+            source_html = f'<a href="{url}" target="_blank" style="color:#4a5568; text-decoration:none;">🔗 {source}</a>'
+        else:
+            headline_html = headline
+            source_html = source
+
         st.markdown(
             f'<div class="article-card">'
             f'<span class="sentiment-dot {dot_class}"></span>'
-            f'<strong>{art.get("headline", "")}</strong>'
-            f'<br><span style="font-size:12px; color:#4a5568; font-family:JetBrains Mono,monospace;">'
-            f'{art.get("source", "")} · {time_ago} · '
+            f'<strong>{headline_html}</strong>'
+            f'<br><span style="font-size:12px; font-family:JetBrains Mono,monospace;">'
+            f'{source_html} · {time_ago} · '
             f'<span style="color:{color};">{conf:.0f}% {s}</span>'
             f'</span></div>',
             unsafe_allow_html=True,
