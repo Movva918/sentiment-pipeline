@@ -15,7 +15,6 @@ from decimal import Decimal
 @mock_aws
 def test_api_health_endpoint():
     """Health endpoint should return status without auth."""
-    # Set up mock DynamoDB
     dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
     dynamodb.create_table(
         TableName="sentiment-pipeline-scores",
@@ -30,13 +29,7 @@ def test_api_health_endpoint():
         BillingMode="PAY_PER_REQUEST",
     )
 
-    import os
-    os.environ["SCORES_TABLE"] = "sentiment-pipeline-scores"
-    os.environ["ATHENA_DATABASE"] = "sentiment_pipeline"
-    os.environ["ATHENA_OUTPUT"] = "s3://test-bucket/"
-    os.environ["CLOUD_RUN_URL"] = "http://localhost:8080"
-
-    from src.api.api_lambda import lambda_handler
+    from api_lambda import lambda_handler
 
     event = {"routeKey": "GET /health", "pathParameters": None}
     result = lambda_handler(event, None)
@@ -64,10 +57,7 @@ def test_api_unknown_route():
         BillingMode="PAY_PER_REQUEST",
     )
 
-    import os
-    os.environ["SCORES_TABLE"] = "sentiment-pipeline-scores"
-
-    from src.api.api_lambda import lambda_handler
+    from api_lambda import lambda_handler
 
     event = {"routeKey": "GET /nonexistent", "pathParameters": None}
     result = lambda_handler(event, None)
@@ -92,10 +82,7 @@ def test_api_invalid_ticker():
         BillingMode="PAY_PER_REQUEST",
     )
 
-    import os
-    os.environ["SCORES_TABLE"] = "sentiment-pipeline-scores"
-
-    from src.api.api_lambda import lambda_handler
+    from api_lambda import lambda_handler
 
     event = {
         "routeKey": "GET /sentiment/{ticker}",
@@ -125,7 +112,6 @@ def test_api_ticker_with_data():
         BillingMode="PAY_PER_REQUEST",
     )
 
-    # Insert test data
     table.put_item(Item={
         "ticker": "AAPL",
         "published_at": "2026-09-21T10:00:00+00:00",
@@ -137,10 +123,7 @@ def test_api_ticker_with_data():
         "confidence": Decimal("0.95"),
     })
 
-    import os
-    os.environ["SCORES_TABLE"] = "sentiment-pipeline-scores"
-
-    from src.api.api_lambda import lambda_handler
+    from api_lambda import lambda_handler
 
     event = {
         "routeKey": "GET /sentiment/{ticker}",
@@ -160,8 +143,6 @@ def test_api_ticker_with_data():
 
 def test_generate_article_id():
     """Article IDs should be deterministic."""
-    import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'ingestion'))
     from utils import generate_article_id
 
     id1 = generate_article_id("finnhub", "https://example.com/article1")
@@ -177,13 +158,7 @@ def test_generate_article_id():
 
 def test_compute_aggregate_empty():
     """Empty items should return neutral aggregate."""
-    import os
-    os.environ.setdefault("SCORES_TABLE", "sentiment-pipeline-scores")
-    os.environ.setdefault("ATHENA_DATABASE", "sentiment_pipeline")
-    os.environ.setdefault("ATHENA_OUTPUT", "s3://test/")
-    os.environ.setdefault("CLOUD_RUN_URL", "http://localhost:8080")
-
-    from src.api.api_lambda import compute_aggregate
+    from api_lambda import compute_aggregate
 
     result = compute_aggregate([])
     assert result["label"] == "neutral"
@@ -192,13 +167,7 @@ def test_compute_aggregate_empty():
 
 def test_compute_aggregate_mixed():
     """Mixed sentiment should return correct percentages."""
-    import os
-    os.environ.setdefault("SCORES_TABLE", "sentiment-pipeline-scores")
-    os.environ.setdefault("ATHENA_DATABASE", "sentiment_pipeline")
-    os.environ.setdefault("ATHENA_OUTPUT", "s3://test/")
-    os.environ.setdefault("CLOUD_RUN_URL", "http://localhost:8080")
-
-    from src.api.api_lambda import compute_aggregate
+    from api_lambda import compute_aggregate
 
     items = [
         {"sentiment": "positive", "confidence": Decimal("0.9")},
