@@ -337,7 +337,7 @@ def render_detail(ticker: str):
     if not articles:
         st.info("No recent articles.")
         return
-
+    st.json(articles[0] if articles else {})
     for art in articles:
         s = art.get("sentiment", "neutral")
         dot_class = "pos-dot" if s == "positive" else "neg-dot" if s == "negative" else "neu-dot"
