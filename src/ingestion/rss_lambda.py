@@ -23,16 +23,24 @@ TICKERS = os.environ["TICKERS"].split(",")
 # RSS feed URLs for financial news
 RSS_FEEDS = [
     {
-        "name": "yahoo_finance",
-        "url": "https://finance.yahoo.com/news/rssindex",
+        "name": "cnbc_top_news",
+        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147",
     },
     {
-        "name": "reuters_business",
-        "url": "https://www.reutersagency.com/feed/?best-topics=business-finance",
+        "name": "cnbc_finance",
+        "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664",
     },
     {
-        "name": "reuters_markets",
-        "url": "https://www.reutersagency.com/feed/?best-topics=markets",
+        "name": "seeking_alpha",
+        "url": "https://seekingalpha.com/feed.xml",
+    },
+    {
+        "name": "investing_com",
+        "url": "https://www.investing.com/rss/news.rss",
+    },
+    {
+        "name": "marketwatch",
+        "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
     },
 ]
 
