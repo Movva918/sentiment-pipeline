@@ -1,11 +1,13 @@
 """Shared utilities for ingestion Lambda functions."""
 
+import os
 import json
 import hashlib
 import logging
+import boto3
 from datetime import datetime, timezone
 
-import boto3
+
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
@@ -17,7 +19,7 @@ sqs = boto3.client("sqs")
 dynamodb = boto3.resource("dynamodb")
 
 # Environment variables are set in the Lambda configuration
-import os
+
 
 RAW_BUCKET = os.environ["RAW_BUCKET"]
 SQS_QUEUE_URL = os.environ["SQS_QUEUE_URL"]

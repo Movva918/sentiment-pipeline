@@ -6,8 +6,6 @@ for 10 tracked tickers, powered by the sentiment-pipeline API.
 
 import streamlit as st
 import requests
-import json
-import time
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 

@@ -198,8 +198,10 @@ def _history_from_athena(ticker):
 
         # Parse and group by date
         from collections import defaultdict
-        daily = defaultdict(lambda: {"positive": 0, "negative": 0, "neutral": 0,
-                                      "total_conf": 0.0, "count": 0})
+        daily = defaultdict(lambda: {
+            "positive": 0, "negative": 0, "neutral": 0,
+            "total_conf": 0.0, "count": 0
+        })
 
         for row in rows[1:]:
             cols = [c.get("VarCharValue", "") for c in row["Data"]]
@@ -251,8 +253,10 @@ def _history_from_dynamodb(ticker):
         if not last_key or len(all_items) >= 2000:
             break
 
-    daily = defaultdict(lambda: {"positive": 0, "negative": 0, "neutral": 0,
-                                  "total_conf": 0.0, "count": 0})
+    daily = defaultdict(lambda: {
+        "positive": 0, "negative": 0, "neutral": 0,
+        "total_conf": 0.0, "count": 0
+    })
 
     for item in all_items:
         pub = item.get("published_at", "")
