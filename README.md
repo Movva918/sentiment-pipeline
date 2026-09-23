@@ -9,6 +9,7 @@ A serverless, event-driven pipeline that ingests financial news from 4 sources, 
 | Resource | URL |
 |---|---|
 | Dashboard | [sentiment-pipeline.streamlit.app](https://sentiment-pipeline.streamlit.app) |
+| Demo Login | Email: `demo@sentiment-pipeline.com` · Password: `SentimentDemo@2026` |
 | API Endpoint | `cwf1zzg2o9.execute-api.us-east-1.amazonaws.com` |
 
 ## Architecture
