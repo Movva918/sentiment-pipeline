@@ -8,7 +8,7 @@ A serverless, event-driven pipeline that ingests financial news from 4 sources, 
 
 | Resource | URL |
 |---|---|
-| Dashboard | [movva918-sentiment-pipeline-srcdashboardapp-tnpeuq.streamlit.app](https://movva918-sentiment-pipeline-srcdashboardapp-tnpeuq.streamlit.app) |
+| Dashboard | [sentiment-pipeline.streamlit.app](https://sentiment-pipeline.streamlit.app) |
 | API Endpoint | `cwf1zzg2o9.execute-api.us-east-1.amazonaws.com` |
 
 ## Architecture
