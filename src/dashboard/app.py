@@ -9,7 +9,7 @@ import requests
 import json
 import time
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ── Config ────────────────────────────────────────────
 API_BASE = "https://cwf1zzg2o9.execute-api.us-east-1.amazonaws.com"
@@ -144,6 +144,15 @@ def render_history_chart(history_data):
         return
 
     days = list(reversed(history_data["history"]))  # oldest first
+
+    # Filter to last 14 days to avoid old scattered data stretching the x-axis
+    cutoff = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+    days = [d for d in days if d["day"] >= cutoff]
+
+    if not days:
+        st.info("No recent historical data available.")
+        return
+
     dates = [d["day"] for d in days]
     pos = [d["positive"] for d in days]
     neg = [d["negative"] for d in days]
@@ -151,11 +160,14 @@ def render_history_chart(history_data):
 
     fig = go.Figure()
     fig.add_trace(go.Bar(name="Positive", x=dates, y=pos,
-                         marker_color="rgba(16,185,129,0.75)"))
+                         marker_color="rgba(16,185,129,0.75)",
+                         hovertemplate="%{x}<br>Positive: %{y}<extra></extra>"))
     fig.add_trace(go.Bar(name="Negative", x=dates, y=neg,
-                         marker_color="rgba(239,68,68,0.75)"))
+                         marker_color="rgba(239,68,68,0.75)",
+                         hovertemplate="%{x}<br>Negative: %{y}<extra></extra>"))
     fig.add_trace(go.Bar(name="Neutral", x=dates, y=neu,
-                         marker_color="rgba(107,127,163,0.35)"))
+                         marker_color="rgba(107,127,163,0.35)",
+                         hovertemplate="%{x}<br>Neutral: %{y}<extra></extra>"))
 
     fig.update_layout(
         barmode="stack",
@@ -165,8 +177,15 @@ def render_history_chart(history_data):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=40, r=20, t=40, b=40),
         height=320,
-        xaxis=dict(gridcolor="rgba(30,42,58,0.5)"),
+        xaxis=dict(gridcolor="rgba(30,42,58,0.5)", dtick="D1", tickformat="%b %d"),
         yaxis=dict(gridcolor="rgba(30,42,58,0.5)", title="Articles"),
+        hoverlabel=dict(
+            bgcolor="#1e293b",
+            font_size=13,
+            font_family="JetBrains Mono, monospace",
+            font_color="#f1f5f9",
+            bordercolor="#334155",
+        ),
     )
 
     st.plotly_chart(fig, use_container_width=True)
