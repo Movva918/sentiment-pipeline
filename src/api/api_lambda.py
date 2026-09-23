@@ -104,6 +104,7 @@ def handle_get_ticker(ticker):
             "published_at": item.get("published_at", ""),
             "sentiment": item.get("sentiment", ""),
             "confidence": float(item.get("confidence", 0)),
+            "url": item.get("url", ""),
         })
 
     return response(200, {
